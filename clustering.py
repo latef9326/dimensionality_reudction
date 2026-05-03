@@ -1,8 +1,3 @@
-# =============================================================================
-# COMPLETE CLUSTERING LAB - CORRECTED VERSION
-# All comments in English as requested
-# =============================================================================
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
