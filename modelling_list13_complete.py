@@ -1,16 +1,3 @@
-"""
-================================================================================
-Modelling of Biological Systems – List 13
-Complete Python solution for Tasks 1, 2 & 3
-================================================================================
-Compatible with: PyCharm, VS Code, Jupyter, or any standard Python environment.
-
-Requirements (install via pip or conda):
-    pip install numpy matplotlib scipy
-
-Author: Student
-Date: 2026-06-01
-"""
 
 import numpy as np
 import matplotlib.pyplot as plt

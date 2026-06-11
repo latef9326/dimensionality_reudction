@@ -1,7 +1,7 @@
 """
 XAI Analysis: Random Forest Classification on Synthetic Gene Expression Data
 Techniques: SHAP + Permutation Feature Importance
-Author: Lateef Hanus , Michal Chojnacki
+Author: Lateef Hanus, Michal Chojnacki
 Date: 2026-06-03
 """
 
@@ -12,7 +12,10 @@ import seaborn as sns
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_curve, auc
+from sklearn.metrics import (
+    accuracy_score, classification_report, confusion_matrix,
+    roc_curve, auc, roc_auc_score
+)
 from sklearn.inspection import permutation_importance
 import shap
 import warnings
@@ -21,6 +24,9 @@ warnings.filterwarnings('ignore')
 # ------------------------------------------------------------------
 # 1. DATA GENERATION
 # ------------------------------------------------------------------
+# NOTE: Synthetic data allows controlled evaluation of XAI techniques,
+# but real transcriptomic data would introduce complex co-expression
+# networks, batch effects, and p >> n problems not captured here.
 X, y = make_classification(
     n_samples=500,
     n_features=30,
@@ -57,6 +63,7 @@ y_pred = rf_model.predict(X_test)
 y_prob = rf_model.predict_proba(X_test)[:, 1]
 
 print("Accuracy:", accuracy_score(y_test, y_pred))
+print("ROC AUC: ", roc_auc_score(y_test, y_prob))
 print(classification_report(y_test, y_pred, target_names=['Healthy', 'Disease']))
 
 # ------------------------------------------------------------------
@@ -65,41 +72,43 @@ print(classification_report(y_test, y_pred, target_names=['Healthy', 'Disease'])
 explainer = shap.TreeExplainer(rf_model)
 shap_values = explainer.shap_values(X_test)
 
-# For binary classification, select class 1 (Disease)
+#select class 1 (Disease)
 if isinstance(shap_values, list):
     shap_values_class1 = shap_values[1]
 else:
     shap_values_class1 = shap_values[:, :, 1] if shap_values.ndim == 3 else shap_values
 
-# SHAP Summary Plot
+
 plt.figure(figsize=(10, 8))
-shap.summary_plot(shap_values_class1, X_test, feature_names=feature_names, 
+shap.summary_plot(shap_values_class1, X_test, feature_names=feature_names,
                   max_display=15, show=False)
 plt.title('SHAP Summary Plot (Beeswarm)')
 plt.tight_layout()
 plt.savefig('shap_beeswarm.png', dpi=300, bbox_inches='tight')
 plt.show()
 
-# SHAP Bar Plot
+
 plt.figure(figsize=(10, 6))
-shap.summary_plot(shap_values_class1, X_test, feature_names=feature_names, 
+shap.summary_plot(shap_values_class1, X_test, feature_names=feature_names,
                   plot_type="bar", max_display=15, show=False)
 plt.title('SHAP Feature Importance (Mean |SHAP value|)')
 plt.tight_layout()
 plt.savefig('shap_bar.png', dpi=300, bbox_inches='tight')
 plt.show()
 
-# SHAP Waterfall for single prediction
+# SHAP Waterfall for single prediction — NEW API
 expected_val = float(explainer.expected_value[1]) if isinstance(explainer.expected_value, (list, np.ndarray)) else float(explainer.expected_value)
-plt.figure(figsize=(10, 6))
-shap.plots._waterfall.waterfall_legacy(
-    expected_value=expected_val,
-    shap_values=shap_values_class1[0],
-    features=X_test[0],
-    feature_names=feature_names,
-    max_display=15,
-    show=False
+
+explanation = shap.Explanation(
+    values=shap_values_class1[0],
+    base_values=expected_val,
+    data=X_test[0],
+    feature_names=feature_names
 )
+
+plt.figure(figsize=(10, 6))
+shap.plots.waterfall(explanation, max_display=15, show=False)
+plt.gcf().set_size_inches(10, 6)  # ensure figure size applies
 plt.title('SHAP Waterfall Plot — Single Prediction')
 plt.tight_layout()
 plt.savefig('shap_waterfall.png', dpi=300, bbox_inches='tight')
@@ -109,10 +118,10 @@ plt.show()
 # 4. XAI TECHNIQUE 2: PERMUTATION FEATURE IMPORTANCE
 # ------------------------------------------------------------------
 perm_importance = permutation_importance(
-    rf_model, X_test, y_test, 
-    n_repeats=50, 
-    random_state=42, 
-    scoring='accuracy',
+    rf_model, X_test, y_test,
+    n_repeats=50,
+    random_state=42,
+    scoring='roc_auc',  # <-- zmiana z 'accuracy'
     n_jobs=-1
 )
 
@@ -124,9 +133,9 @@ perm_df = pd.DataFrame({
 
 plt.figure(figsize=(10, 8))
 top_perm = perm_df.tail(15)
-plt.barh(top_perm['feature'], top_perm['importance_mean'], 
+plt.barh(top_perm['feature'], top_perm['importance_mean'],
          xerr=top_perm['importance_std'], capsize=3, color='coral', edgecolor='black')
-plt.xlabel('Decrease in Accuracy')
+plt.xlabel('Decrease in ROC AUC')  # <-- zaktualizowana etykieta
 plt.title('Permutation Feature Importance (Top 15)')
 plt.axvline(x=0, color='black', linestyle='--', alpha=0.5)
 plt.tight_layout()

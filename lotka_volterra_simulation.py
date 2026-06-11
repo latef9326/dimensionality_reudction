@@ -251,7 +251,7 @@ def plot_statistics(results, lam_values, output_dir):
         final_prey.append(np.mean(fb))
 
     fig, axes = plt.subplots(1, 3, figsize=(16, 5))
-    x = np.arange(len(lam_vals))
+    x = np.arange(len(lam_values))
     width = 0.35
 
     # Average populations (last 100 steps)
